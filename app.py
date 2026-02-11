@@ -7,8 +7,10 @@ IMAGE_FOLDER = 'uploads'
 
 @app.route('/')
 def index():
-    # Liste les images pour le menu
-    images = [f for f in os.listdir(IMAGE_FOLDER) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+    # On scanne le dossier pour trouver TOUTES les images à chaque chargement
+    images = [f for f in os.listdir(IMAGE_FOLDER) if f.lower().split('.')[-1] in ['jpg', 'jpeg', 'png', 'gif', 'webp']]
+    
+    # On envoie cette liste au fichier HTML
     return render_template('index.html', images=images)
 
 @app.route('/get_analysis')
