@@ -3,45 +3,110 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Segmentation K-Means - Nathan</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
-    <nav><a href="/">Retour à la galerie</a></nav>
-    <h1>Segmentation par Couleurs</h1>
+    <nav>
+        <a href="/">Galerie & Palette</a>
+        <a href="/segmentation">Segmentation par dossier</a>
+    </nav>
 
-    <form id="segForm">
-        <input type="file" id="imageInput" accept="image/*" required>
-        <label>Nombre de zones (K) :</label>
-        <input type="number" id="kInput" value="3" min="2" max="30">
-        <button type="submit">Segmenter l'image</button>
-    </form>
+    <h1>Explorateur & Segmentation K-Means</h1>
+
+    <div class="controls">
+        <input type="text" id="folderPath" placeholder="Ex: /Users/nathanplltr/Desktop/Photos" style="width: 350px;">
+        <button onclick="scanFolder()">Scanner le dossier</button>
+
+        <select id="fileSelector" style="display:none;">
+            <option value="">-- Choisir l'image --</option>
+        </select>
+
+        <select id="kSelector">
+            <option value="2">2 couleurs</option>
+            <option value="5" selected>5 couleurs</option>
+            <option value="10">10 couleurs</option>
+            <option value="20">20 couleurs</option>
+        </select>
+
+        <button onclick="startSegmentation()" id="btnRun">Lancer la segmentation</button>
+    </div>
+
+    <div id="loading" style="display:none; margin-top: 20px;">
+        <strong>L'algorithme K-Means calcule... Merci de patienter.</strong>
+    </div>
 
     <div class="main-content">
-        <div id="loading" style="display:none;">Calcul en cours... (K-Means travaille)</div>
-        <div id="resultArea" style="display:flex; gap:20px;">
-            <img id="resImg" style="display:none; max-width:45%;">
+        <div class="viewer">
+            <img id="resImg" style="display:none;" alt="Résultat de la segmentation">
+        </div>
+
+        <div id="resultCard" class="analysis-card" style="display:none;">
+            <h3>Détails</h3>
+            <p id="infoText">Segmentation terminée avec succès.</p>
+            <button onclick="window.print()" style="width: 100%;">Imprimer le résultat</button>
         </div>
     </div>
 
     <script>
-        document.getElementById('segForm').onsubmit = async (e) => {
-            e.preventDefault();
-            document.getElementById('loading').style.display = "block";
+        async function scanFolder() {
+            const path = document.getElementById('folderPath').value;
+            if (!path) return alert("Entre un chemin d'accès !");
 
-            const formData = new FormData();
-            formData.append('image', document.getElementById('imageInput').files[0]);
-            formData.append('k', document.getElementById('kInput').value);
+            const response = await fetch('/scan_folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path })
+            });
 
-            const response = await fetch('/run_segmentation', { method: 'POST', body: formData });
             const data = await response.json();
+            if (data.error) return alert(data.error);
 
-            const img = document.getElementById('resImg');
-            img.src = data.result_url;
-            img.style.display = "block";
-            document.getElementById('loading').style.display = "none";
-        };
+            const selector = document.getElementById('fileSelector');
+            selector.innerHTML = '<option value="">-- Choisir l\'image --</option>';
+            data.files.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = f;
+                selector.appendChild(opt);
+            });
+            selector.style.display = 'inline-block';
+        }
+
+        async function startSegmentation() {
+            const path = document.getElementById('folderPath').value;
+            const filename = document.getElementById('fileSelector').value;
+            const k = document.getElementById('kSelector').value;
+
+            if (!filename) return alert("Sélectionne une image d'abord !");
+
+            const loading = document.getElementById('loading');
+            const btn = document.getElementById('btnRun');
+
+            loading.style.display = "block";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/run_segmentation_path', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: path, filename: filename, k: k })
+                });
+
+                const data = await response.json();
+                const img = document.getElementById('resImg');
+                img.src = data.result_url;
+                img.style.display = "block";
+                document.getElementById('resultCard').style.display = "block";
+            } catch (e) {
+                alert("Erreur lors du calcul.");
+            } finally {
+                loading.style.display = "none";
+                btn.disabled = false;
+            }
+        }
     </script>
 </body>
 
