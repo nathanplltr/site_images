@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Sélecteur d'Images</title>
+</head>
+
+<body>
+
+    <h1>Choisir une image à afficher</h1>
+
+    <select id="imageSelector" onchange="updateImage()">
+        <option value="">-- Sélectionnez une image --</option>
+        {% for img in images %}
+        <option value="{{ img }}">{{ img }}</option>
+        {% endfor %}
+    </select>
+
+    <div class="viewer">
+        <img id="mainImage" src="" style="display:none;" alt="Image sélectionnée">
+    </div>
+
+    <script>
+        function updateImage() {
+            const selector = document.getElementById('imageSelector');
+            const imgTag = document.getElementById('mainImage');
+            const filename = selector.value;
+
+            if (filename) {
+                // On met à jour la source de l'image avec la route Flask
+                imgTag.src = "/uploads/" + filename;
+                imgTag.style.display = "inline-block";
+            } else {
+                imgTag.style.display = "none";
+            }
+        }
+    </script>
+</body>
+
+</html>
