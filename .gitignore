@@ -1,0 +1,13 @@
+# On ignore les fichiers de résultats de segmentation
+static/results/*.png
+static/results/*.jpg
+
+# On ignore les dossiers cachés de macOS
+.DS_Store
+
+# On ignore les dossiers de cache Python
+__pycache__/
+*.pyc
+
+# Optionnel : si tu ne veux pas envoyer tes images d'upload
+uploads/*
