@@ -3,38 +3,71 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyseur K-Means - Nathan</title>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <title>Sélecteur d'Images</title>
 </head>
 
 <body>
 
-    <h1>Choisir une image à afficher</h1>
+    <h1>Analyseur de couleurs K-Means</h1>
 
-    <select id="imageSelector" onchange="updateImage()">
-        <option value="">-- Sélectionnez une image --</option>
-        {% for img in images %}
-        <option value="{{ img }}">{{ img }}</option>
-        {% endfor %}
-    </select>
+    <div class="controls">
+        <select id="imageSelector">
+            <option value="">-- Choisir une Image --</option>
+            {% for img in images %}
+            <option value="{{ img }}">{{ img }}</option>
+            {% endfor %}
+        </select>
 
-    <div class="viewer">
-        <img id="mainImage" src="" style="display:none;" alt="Image sélectionnée">
+        <select id="kSelector">
+            <option value="1">1 Couleur (Dominante)</option>
+            <option value="3" selected>3 Couleurs (Palette)</option>
+            <option value="5">5 Couleurs (Détaillé)</option>
+        </select>
+
+        <button onclick="runAnalysis()">Lancer K-Means</button>
+    </div>
+
+    <div class="main-content">
+        <div class="viewer">
+            <img id="mainImage" src="" style="display:none;" alt="Aperçu">
+        </div>
+
+        <div id="resultCard" class="analysis-card" style="display:none;">
+            <h3>Analyse K-Means</h3>
+            <div id="paletteContainer"></div>
+        </div>
     </div>
 
     <script>
-        function updateImage() {
-            const selector = document.getElementById('imageSelector');
-            const imgTag = document.getElementById('mainImage');
-            const filename = selector.value;
+        function runAnalysis() {
+            const filename = document.getElementById('imageSelector').value;
+            const k = document.getElementById('kSelector').value;
+            const paletteContainer = document.getElementById('paletteContainer');
 
-            if (filename) {
-                // On met à jour la source de l'image avec la route Flask
-                imgTag.src = "/uploads/" + filename;
-                imgTag.style.display = "inline-block";
-            } else {
-                imgTag.style.display = "none";
-            }
+            if (!filename) return alert("Choisis une image !");
+
+            // Affiche l'image sélectionnée
+            document.getElementById('mainImage').src = "/uploads/" + filename;
+            document.getElementById('mainImage').style.display = "block";
+
+            // Appel à l'API Flask
+            fetch(`/get_analysis?filename=${filename}&k=${k}`)
+                .then(res => res.json())
+                .then(data => {
+                    paletteContainer.innerHTML = ""; // Vide l'ancien résultat
+                    data.palette.forEach(color => {
+                        const div = document.createElement('div');
+                        div.className = 'color-box';
+                        div.style.backgroundColor = color;
+                        div.innerText = color;
+                        paletteContainer.appendChild(div);
+                    });
+                    document.getElementById('resultCard').style.display = "block";
+                })
+                .catch(err => console.error("Erreur :", err));
         }
     </script>
 </body>
