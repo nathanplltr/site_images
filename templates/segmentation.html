@@ -12,12 +12,15 @@
     <nav>
         <a href="/">Galerie & Palette</a>
         <a href="/segmentation">Segmentation par dossier</a>
+        <a href="/hierarchie">Approche Hiérarchique</a>
+        <a href="/dbscan">DBSCAN</a>
     </nav>
 
     <h1>Explorateur & Segmentation K-Means</h1>
 
     <div class="controls">
-        <input type="text" id="folderPath" placeholder="Ex: /Users/nathanplltr/Desktop/Photos" style="width: 350px;">
+        <input type="text" id="folderPath" value="/Users/nathanplltr/Downloads"
+            placeholder="Ex: /Users/nathanplltr/Desktop/Photos" style="width: 350px;">
         <button onclick="scanFolder()">Scanner le dossier</button>
 
         <select id="fileSelector" style="display:none;">

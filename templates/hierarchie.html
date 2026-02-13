@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analyse Hiérarchique - Nathan</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <nav>
+        <a href="/">Galerie & Palette</a>
+        <a href="/segmentation">Segmentation K-Means</a>
+        <a href="/hierarchie" class="active">Approche Hiérarchique</a>
+        <a href="/dbscan">DBSCAN</a>
+    </nav>
+
+    <h1>Clustering Hiérarchique & Dendrogramme</h1>
+
+    <div class="controls">
+        <input type="text" id="folderPath" value="/Users/nathanplltr/Downloads"
+            placeholder="Ex: /Users/nathanplltr/Desktop/Photos" style="width: 300px;">
+        <button onclick="scanFolder()">Scanner le dossier</button>
+
+        <select id="fileSelector" style="display:none;">
+            <option value="">-- Choisir l'image --</option>
+        </select>
+
+        <label for="threshold">Clusters :</label>
+        <input type="number" id="threshold" value="5" min="2" max="20" style="width: 60px;">
+
+        <button onclick="startHierarchy()" id="btnRun">Lancer l'analyse</button>
+    </div>
+
+    <div id="loading" style="display:none; margin: 20px 0; font-weight: bold; color: #3498db;">
+        Calcul hiérarchique en cours... Cela peut prendre quelques secondes sur votre Mac.
+    </div>
+
+    <div class="main-content" style="flex-direction: column; align-items: center;">
+        <div style="display: flex; gap: 30px; justify-content: center; flex-wrap: wrap; width: 100%;">
+
+            <div class="analysis-card" id="treeContainer" style="display:none; flex: 1; min-width: 400px;">
+                <h3>Structure de l'arbre (Dendrogramme)</h3>
+                <img id="treeImg" style="width: 100%; border: none; box-shadow: none;" alt="Dendrogramme">
+                <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">
+                    L'arbre montre comment les pixels se regroupent par similarité de couleur.
+                </p>
+            </div>
+
+            <div class="analysis-card" id="segContainer" style="display:none; flex: 1; min-width: 400px;">
+                <h3>Résultat de la segmentation</h3>
+                <img id="segImg" style="width: 100%; border: none; box-shadow: none;" alt="Image segmentée">
+                <p style="font-size: 0.8rem; color: #666; margin-top: 10px;">
+                    Image reconstruite après avoir coupé l'arbre au niveau choisi.
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        async function scanFolder() {
+            const path = document.getElementById('folderPath').value;
+            if (!path) return alert("Veuillez saisir un chemin d'accès.");
+
+            const response = await fetch('/scan_folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path })
+            });
+
+            const data = await response.json();
+            if (data.error) return alert("Erreur : " + data.error);
+
+            const selector = document.getElementById('fileSelector');
+            selector.innerHTML = '<option value="">-- Choisir l\'image --</option>';
+            data.files.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = f;
+                selector.appendChild(opt);
+            });
+            selector.style.display = 'inline-block';
+        }
+
+        async function startHierarchy() {
+            const path = document.getElementById('folderPath').value;
+            const filename = document.getElementById('fileSelector').value;
+            const threshold = document.getElementById('threshold').value;
+
+            if (!filename) return alert("Choisissez une image d'abord !");
+
+            const btn = document.getElementById('btnRun');
+            const loading = document.getElementById('loading');
+
+            loading.style.display = "block";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/run_hierarchical', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        path: path,
+                        filename: filename,
+                        threshold: threshold
+                    })
+                });
+
+                const data = await response.json();
+
+                // Affichage du Dendrogramme
+                document.getElementById('treeImg').src = data.tree_url;
+                document.getElementById('treeContainer').style.display = "block";
+
+                // Affichage de la Segmentation
+                document.getElementById('segImg').src = data.seg_url;
+                document.getElementById('segContainer').style.display = "block";
+
+            } catch (e) {
+                alert("Erreur lors du calcul hiérarchique.");
+                console.error(e);
+            } finally {
+                loading.style.display = "none";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+
+</html>

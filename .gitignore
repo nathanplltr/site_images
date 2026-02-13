@@ -10,4 +10,7 @@ __pycache__/
 *.pyc
 
 # Optionnel : si tu ne veux pas envoyer tes images d'upload
-uploads/*
+# uploads/*
+
+latest_dbscan.png
+

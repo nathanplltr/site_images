@@ -4,6 +4,10 @@ from flask import Flask, render_template, jsonify, request, send_from_directory
 from PIL import Image
 from sklearn.cluster import KMeans
 import uuid
+from scipy.cluster.hierarchy import dendrogram, linkage
+import matplotlib
+matplotlib.use('Agg') 
+import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 
@@ -98,5 +102,116 @@ def run_segmentation_path():
     
     return jsonify({'result_url': f'/static/results/{result_filename}?v={timestamp}'})
 
+# --- Route pour l'Approche Hiérarchique ---
+
+@app.route('/hierarchie')
+def hierarchie_page():
+    return render_template('hierarchie.html')
+
+from scipy.cluster.hierarchy import dendrogram, linkage, fcluster
+
+@app.route('/run_hierarchical', methods=['POST'])
+def run_hierarchical():
+    import time # Assure-toi qu'il est bien importé
+    data = request.json
+    folder_path = data.get('path')
+    filename = data.get('filename')
+    threshold = int(data.get('threshold', 5)) 
+    
+    full_path = os.path.join(folder_path, filename)
+    
+    if not os.path.exists(full_path):
+        return jsonify({'error': 'Fichier introuvable'}), 404
+
+    img = Image.open(full_path).convert('RGB')
+    img.thumbnail((80, 80)) 
+    img_np = np.array(img)
+    w, h, d = img_np.shape
+    pixels = img_np.reshape(-1, 3)
+    
+    # 1. Calcul du linkage
+    Z = linkage(pixels, method='ward')
+
+    # 2. Dendrogramme
+    plt.figure(figsize=(20, 15))
+    dendrogram(Z, truncate_mode='lastp', p=50, leaf_rotation=90., leaf_font_size=8.)
+    plt.title("Structure hiérarchique")
+    tree_path = os.path.join(STATIC_RESULTS, "latest_hierarchy_tree.png")
+    plt.savefig(tree_path)
+    plt.close()
+
+    # 3. Segmentation (On utilise le nombre réel de clusters trouvés)
+    labels = fcluster(Z, t=threshold, criterion='maxclust')
+    unique_labels = np.unique(labels)
+    
+    new_pixels = np.zeros_like(pixels)
+    for lbl in unique_labels:
+        indices = np.where(labels == lbl)
+        mean_color = pixels[indices].mean(axis=0)
+        new_pixels[indices] = mean_color
+
+    segmented_img = new_pixels.reshape(w, h, d).astype(np.uint8)
+    seg_path = os.path.join(STATIC_RESULTS, "latest_hierarchy_seg.png")
+    Image.fromarray(segmented_img).save(seg_path)
+
+    ts = int(time.time())
+    return jsonify({
+        'tree_url': f'/static/results/latest_hierarchy_tree.png?v={ts}',
+        'seg_url': f'/static/results/latest_hierarchy_seg.png?v={ts}'
+    })
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5002)
+    app.run(debug=True, port=5002, use_reloader=True)
+
+
+from sklearn.cluster import DBSCAN
+
+# --- Routes DBSCAN ---
+
+@app.route('/dbscan')
+def dbscan_page():
+    return render_template('dbscan.html')
+
+@app.route('/run_dbscan', methods=['POST'])
+def run_dbscan():
+    data = request.json
+    folder_path = data.get('path')
+    filename = data.get('filename')
+    # eps: distance max entre deux points pour être voisins
+    # min_samples: nombre de points pour former un groupe
+    eps = float(data.get('eps', 5.0))
+    min_samples = int(data.get('min_samples', 10))
+    
+    full_path = os.path.join(folder_path, filename)
+    img = Image.open(full_path).convert('RGB')
+    img.thumbnail((100, 100)) # On reste sur une petite taille pour la fluidité
+    img_np = np.array(img)
+    w, h, d = img_np.shape
+    pixels = img_np.reshape(-1, 3)
+
+    # Lancement de DBSCAN
+    db = DBSCAN(eps=eps, min_samples=min_samples).fit(pixels)
+    labels = db.labels_
+
+    # Nombre de clusters (en excluant le bruit codé -1)
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+    
+    # Coloration des clusters avec la moyenne
+    new_pixels = np.zeros_like(pixels)
+    for lbl in set(labels):
+        indices = np.where(labels == lbl)
+        if lbl == -1:
+            new_pixels[indices] = [0, 0, 0] # Le bruit en noir
+        else:
+            new_pixels[indices] = pixels[indices].mean(axis=0)
+
+    segmented_img = new_pixels.reshape(w, h, d).astype(np.uint8)
+    result_filename = "latest_dbscan.png"
+    result_path = os.path.join(STATIC_RESULTS, result_filename)
+    Image.fromarray(segmented_img).save(result_path)
+
+    import time
+    return jsonify({
+        'result_url': f'/static/results/{result_filename}?v={int(time.time())}',
+        'n_clusters': n_clusters
+    })

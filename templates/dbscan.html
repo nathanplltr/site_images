@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>DBSCAN - Nathan</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <nav>
+        <a href="/">Galerie</a>
+        <a href="/segmentation">K-Means</a>
+        <a href="/hierarchie">Hiérarchie</a>
+        <a href="/dbscan" class="active">DBSCAN</a>
+    </nav>
+
+    <h1>Segmentation par Densité (DBSCAN)</h1>
+
+    <div class="controls">
+        <input type="text" id="folderPath" value="/Users/nathanplltr/Downloads" style="width: 250px;">
+        <button onclick="scanFolder()">Scanner</button>
+        <select id="fileSelector" style="display:none;"></select>
+
+        <label>Eps:</label>
+        <input type="number" id="eps" value="5" step="0.5" style="width: 50px;">
+        <label>MinPts:</label>
+        <input type="number" id="min_samples" value="10" style="width: 50px;">
+
+        <button onclick="startDBSCAN()">Segmenter</button>
+    </div>
+
+    <div id="loading" style="display:none; margin: 20px;">Analyse de densité en cours...</div>
+    <div id="clusterCount" style="margin: 10px; font-weight: bold;"></div>
+
+    <div class="main-content">
+        <img id="resImg" style="display:none; border: 5px solid white; max-width: 80%;">
+    </div>
+
+    <script>
+        async function scanFolder() {
+            const path = document.getElementById('folderPath').value;
+            const response = await fetch('/scan_folder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: path })
+            });
+            const data = await response.json();
+            const sel = document.getElementById('fileSelector');
+            sel.innerHTML = '<option value="">-- Choisir image --</option>';
+            data.files.forEach(f => { sel.innerHTML += `<option value="${f}">${f}</option>`; });
+            sel.style.display = 'inline-block';
+        }
+
+        async function startDBSCAN() {
+            const path = document.getElementById('folderPath').value;
+            const file = document.getElementById('fileSelector').value;
+            if (!file) return alert("Sélectionne une image !");
+
+            document.getElementById('loading').style.display = "block";
+            const response = await fetch('/run_dbscan', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    path: path, filename: file,
+                    eps: document.getElementById('eps').value,
+                    min_samples: document.getElementById('min_samples').value
+                })
+            });
+            const data = await response.json();
+            document.getElementById('resImg').src = data.result_url;
+            document.getElementById('resImg').style.display = "block";
+            document.getElementById('clusterCount').innerText = `Clusters trouvés : ${data.n_clusters}`;
+            document.getElementById('loading').style.display = "none";
+        }
+    </script>
+</body>
+
+</html>
